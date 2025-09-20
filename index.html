@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum-Resistant Encrypter</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Quantum-Resistant Encrypter</h1>
+        <p>Encrypt and decrypt text securely using a hybrid scheme: <strong>ML-KEM-768</strong> (Post-Quantum) and <strong>AES-256-GCM</strong> (Symmetric).</p>
+        
+        <textarea id="text-input" placeholder="Enter text to encrypt or decrypt..."></textarea>
+        
+        <input type="password" id="password-input" placeholder="Enter your master password">
+        
+        <div class="buttons">
+            <button id="encrypt-btn">Encrypt</button>
+            <button id="decrypt-btn">Decrypt</button>
+        </div>
+        
+        <div id="result-container" class="hidden">
+            <h2>Result:</h2>
+            <pre id="result-output"></pre>
+            <button id="copy-btn">Copy to Clipboard</button>
+        </div>
+
+        <div id="error-container" class="hidden">
+            <p id="error-message"></p>
+        </div>
+    </div>
+
+    <script>
+        const textInput = document.getElementById('text-input');
+        const passwordInput = document.getElementById('password-input');
+        const encryptBtn = document.getElementById('encrypt-btn');
+        const decryptBtn = document.getElementById('decrypt-btn');
+        const resultContainer = document.getElementById('result-container');
+        const errorContainer = document.getElementById('error-container');
+        const resultOutput = document.getElementById('result-output');
+        const errorMessage = document.getElementById('error-message');
+        const copyBtn = document.getElementById('copy-btn');
+
+        async function performAction(action) {
+            const text = textInput.value;
+            const password = passwordInput.value;
+
+            if (!text || !password) {
+                showError("Please provide both text and a password.");
+                return;
+            }
+
+            hideMessages();
+            
+            const response = await fetch(`/${action}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ text, password })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                resultOutput.textContent = data.result;
+                resultContainer.classList.remove('hidden');
+            } else {
+                showError(data.error);
+            }
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorContainer.classList.remove('hidden');
+        }
+
+        function hideMessages() {
+            resultContainer.classList.add('hidden');
+            errorContainer.classList.add('hidden');
+        }
+
+        encryptBtn.addEventListener('click', () => performAction('encrypt'));
+        decryptBtn.addEventListener('click', () => performAction('decrypt'));
+
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(resultOutput.textContent).then(() => {
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => { copyBtn.textContent = 'Copy to Clipboard'; }, 2000);
+            });
+        });
+    </script>
+</body>
+</html>```
+
+#### File 4: `static/style.css`
+A simple stylesheet to make the page look clean.
+
+```css
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+.container {
+    width: 90%;
+    max-width: 700px;
+    background-color: #2a2a2a;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+h1 {
+    text-align: center;
+    color: #4CAF50;
+    margin-bottom: 10px;
+}
+
+p {
+    text-align: center;
+    margin-bottom: 25px;
+    line-height: 1.5;
+}
+
+textarea, input[type="password"] {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    border: 1px solid #444;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+textarea {
+    min-height: 150px;
+    resize: vertical;
+}
+
+.buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+button {
+    flex-grow: 1;
+    padding: 15px;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#encrypt-btn {
+    background-color: #4CAF50;
+    color: white;
+}
+
+#encrypt-btn:hover {
+    background-color: #45a049;
+}
+
+#decrypt-btn {
+    background-color: #f44336;
+    color: white;
+}
+
+#decrypt-btn:hover {
+    background-color: #da190b;
+}
+
+#result-container, #error-container {
+    margin-top: 25px;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+#result-container {
+    background-color: #333;
+}
+
+#error-container {
+    background-color: #441c1c;
+    border: 1px solid #f44336;
+}
+
+h2 {
+    margin-top: 0;
+    color: #4CAF50;
+}
+
+pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    background-color: #1a1a1a;
+    padding: 10px;
+    border-radius: 5px;
+    color: #e0e0e0;
+}
+
+#copy-btn {
+    display: block;
+    margin-top: 15px;
+    background-color: #008CBA;
+    color: white;
+    width: auto;
+    padding: 10px 15px;
+}
+
+#copy-btn:hover {
+    background-color: #007B9E;
+}
+
+.hidden {
+    display: none;
+}
