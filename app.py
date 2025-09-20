@@ -33,17 +33,19 @@ def encrypt():
         plaintext = data['text'].encode('utf-8')
         password = data['password']
 
-        # FINAL CORRECTED FUNCTION NAME
-        private_key, public_key = MLKEM_768.keypair()
+        # CORRECT FUNCTION: keygen()
+        private_key, public_key = MLKEM_768.keygen()
 
-        ciphertext_kem, shared_secret = MLKEM_768.encapsulate_shared_secret(public_key)
+        # CORRECT FUNCTION: encaps()
+        ciphertext_kem, shared_secret = MLKEM_768.encaps(public_key)
+
         salt = os.urandom(SALT_SIZE)
         master_key = generate_master_key(password, salt)
         master_key_aesgcm = AESGCM(master_key)
         master_key_nonce = os.urandom(AES_NONCE_SIZE)
         encrypted_private_key = master_key_aesgcm.encrypt(
             master_key_nonce,
-            private_key.private_key_bytes,
+            private_key, # The private key object itself is bytes-like
             None
         )
         data_aesgcm = AESGCM(shared_secret)
@@ -79,13 +81,17 @@ def decrypt():
         ciphertext_aes = payload[cursor:]
         master_key = generate_master_key(password, salt)
         master_key_aesgcm = AESGCM(master_key)
-        private_key_bytes = master_key_aesgcm.decrypt(
+        
+        # The private key is decrypted directly
+        private_key = master_key_aesgcm.decrypt(
             master_key_nonce,
             encrypted_private_key,
             None
         )
-        private_key = MLKEM_768.private_key_from_bytes(private_key_bytes)
-        shared_secret = MLKEM_768.decapsulate_shared_secret(private_key, ciphertext_kem)
+
+        # CORRECT FUNCTION: decaps()
+        shared_secret = MLKEM_768.decaps(private_key, ciphertext_kem)
+
         data_aesgcm = AESGCM(shared_secret)
         plaintext_bytes = data_aesgcm.decrypt(data_nonce, ciphertext_aes, None)
         return jsonify({'success': True, 'result': plaintext_bytes.decode('utf-8')})
