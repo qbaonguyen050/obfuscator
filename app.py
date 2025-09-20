@@ -33,10 +33,10 @@ def encrypt():
         plaintext = data['text'].encode('utf-8')
         password = data['password']
 
-        # CORRECT FUNCTION: keygen()
+        # THE CORRECT FUNCTION NAME
         private_key, public_key = MLKEM_768.keygen()
 
-        # CORRECT FUNCTION: encaps()
+        # THE CORRECT FUNCTION NAME
         ciphertext_kem, shared_secret = MLKEM_768.encaps(public_key)
 
         salt = os.urandom(SALT_SIZE)
@@ -45,7 +45,7 @@ def encrypt():
         master_key_nonce = os.urandom(AES_NONCE_SIZE)
         encrypted_private_key = master_key_aesgcm.encrypt(
             master_key_nonce,
-            private_key, # The private key object itself is bytes-like
+            private_key,
             None
         )
         data_aesgcm = AESGCM(shared_secret)
@@ -76,20 +76,19 @@ def decrypt():
         master_key_nonce = payload[cursor:cursor + AES_NONCE_SIZE]; cursor += AES_NONCE_SIZE
         encrypted_pk_len = int.from_bytes(payload[cursor:cursor+4], 'big'); cursor += 4
         encrypted_private_key = payload[cursor:cursor+encrypted_pk_len]; cursor += encrypted_pk_len
-        ciphertext_kem = payload[cursor:cursor + MLKEM_768.CIPHERTEXT_LENGTH]; cursor += MLKEM_768.CIPHERTEXT_LENGTH
+        ciphertext_kem = payload[cursor:cursor + MLKEM_768.spec.CIPHERTEXT_BYTES]; cursor += MLKEM_768.spec.CIPHERTEXT_BYTES
         data_nonce = payload[cursor:cursor + AES_NONCE_SIZE]; cursor += AES_NONCE_SIZE
         ciphertext_aes = payload[cursor:]
         master_key = generate_master_key(password, salt)
         master_key_aesgcm = AESGCM(master_key)
         
-        # The private key is decrypted directly
         private_key = master_key_aesgcm.decrypt(
             master_key_nonce,
             encrypted_private_key,
             None
         )
 
-        # CORRECT FUNCTION: decaps()
+        # THE CORRECT FUNCTION NAME
         shared_secret = MLKEM_768.decaps(private_key, ciphertext_kem)
 
         data_aesgcm = AESGCM(shared_secret)
