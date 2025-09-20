@@ -1,7 +1,8 @@
 import os
 import base64
 from flask import Flask, render_template, request, jsonify
-from quantcrypt.kem import MLKEM768
+# CORRECTED IMPORT STATEMENT
+from quantcrypt.kem import MLKEM_768
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -12,8 +13,8 @@ app = Flask(__name__)
 
 # --- Cryptographic Constants ---
 SALT_SIZE = 16
-PBKDF_ITERATIONS = 600000  # NIST recommendation for PBKDF2
-AES_NONCE_SIZE = 12 # 96 bits is recommended for GCM
+PBKDF_ITERATIONS = 600000
+AES_NONCE_SIZE = 12
 
 def generate_master_key(password: str, salt: bytes) -> bytes:
     """Derives a 32-byte master key from a password using PBKDF2-SHA256."""
@@ -38,11 +39,11 @@ def encrypt():
         plaintext = data['text'].encode('utf-8')
         password = data['password']
 
-        # 1. Generate Post-Quantum key pair
-        private_key, public_key = MLKEM768.generate_keypair()
+        # 1. Generate Post-Quantum key pair (CORRECTED)
+        private_key, public_key = MLKEM_768.generate_keypair()
 
-        # 2. Encapsulate a shared secret for AES data encryption
-        ciphertext_kem, shared_secret = MLKEM768.encapsulate_shared_secret(public_key)
+        # 2. Encapsulate a shared secret for AES data encryption (CORRECTED)
+        ciphertext_kem, shared_secret = MLKEM_768.encapsulate_shared_secret(public_key)
 
         # 3. Derive master key from password to protect the PQC private key
         salt = os.urandom(SALT_SIZE)
@@ -62,8 +63,7 @@ def encrypt():
         data_nonce = os.urandom(AES_NONCE_SIZE)
         ciphertext_aes = data_aesgcm.encrypt(data_nonce, plaintext, None)
 
-        # 6. Assemble the final payload for storage/transmission
-        # Format: salt | master_key_nonce | len(enc_pk) | enc_pk | kem_ct | data_nonce | aes_ct
+        # 6. Assemble the final payload
         encrypted_private_key_len = len(encrypted_private_key).to_bytes(4, 'big')
         
         payload = (
@@ -76,7 +76,6 @@ def encrypt():
             ciphertext_aes
         )
 
-        # Return as Base64 for easy copy-pasting
         return jsonify({'success': True, 'result': base64.b64encode(payload).decode('utf-8')})
 
     except Exception as e:
@@ -88,11 +87,9 @@ def decrypt():
     try:
         data = request.json
         password = data['password']
-        
-        # 1. Decode the Base64 payload
         payload = base64.b64decode(data['text'])
 
-        # 2. Parse the payload into its components by slicing
+        # 2. Parse the payload
         cursor = 0
         salt = payload[cursor:cursor + SALT_SIZE]; cursor += SALT_SIZE
         master_key_nonce = payload[cursor:cursor + AES_NONCE_SIZE]; cursor += AES_NONCE_SIZE
@@ -100,11 +97,12 @@ def decrypt():
         encrypted_pk_len = int.from_bytes(payload[cursor:cursor+4], 'big'); cursor += 4
         encrypted_private_key = payload[cursor:cursor+encrypted_pk_len]; cursor += encrypted_pk_len
         
-        ciphertext_kem = payload[cursor:cursor + MLKEM768.CIPHERTEXT_LENGTH]; cursor += MLKEM768.CIPHERTEXT_LENGTH
+        # CORRECTED CONSTANT
+        ciphertext_kem = payload[cursor:cursor + MLKEM_768.CIPHERTEXT_LENGTH]; cursor += MLKEM_768.CIPHERTEXT_LENGTH
         data_nonce = payload[cursor:cursor + AES_NONCE_SIZE]; cursor += AES_NONCE_SIZE
         ciphertext_aes = payload[cursor:]
 
-        # 3. Re-derive the master key from the password and salt
+        # 3. Re-derive the master key
         master_key = generate_master_key(password, salt)
 
         # 4. Decrypt the ML-KEM private key
@@ -114,10 +112,11 @@ def decrypt():
             encrypted_private_key,
             None
         )
-        private_key = MLKEM768.private_key_from_bytes(private_key_bytes)
+        # CORRECTED METHOD
+        private_key = MLKEM_768.private_key_from_bytes(private_key_bytes)
 
-        # 5. Decapsulate to retrieve the shared secret
-        shared_secret = MLKEM768.decapsulate_shared_secret(private_key, ciphertext_kem)
+        # 5. Decapsulate to retrieve the shared secret (CORRECTED)
+        shared_secret = MLKEM_768.decapsulate_shared_secret(private_key, ciphertext_kem)
 
         # 6. Decrypt the actual data
         data_aesgcm = AESGCM(shared_secret)
@@ -126,12 +125,9 @@ def decrypt():
         return jsonify({'success': True, 'result': plaintext_bytes.decode('utf-8')})
 
     except (InvalidTag, ValueError, IndexError):
-        # InvalidTag means wrong password/tampered data. Others for parsing errors.
         return jsonify({'success': False, 'error': "Decryption failed. Please check your password and the encrypted text."})
     except Exception as e:
         return jsonify({'success': False, 'error': f"An unexpected decryption error occurred: {str(e)}"})
 
 if __name__ == '__main__':
-    # Flask will run on 0.0.0.0:6080 inside the container.
-    # GitHub Codespaces will forward this port securely to a public URL.
-    app.run(host='0.0.0.0', port=6080, debug=True)
+    app.run(host='0.0.0.0', port=6080, debug=False)
